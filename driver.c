@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
     
       /* start clock */
       dtime = FLA_Clock();
+    
       /* Compute Cref += A B*/
       dgemm_( "No transpose", "No transpose",
 	      &m, &n, &k,
@@ -100,6 +101,7 @@ int main(int argc, char *argv[])
       dtime_best_ref = dmin(dtime, dtime_best_ref);
     }
   
+
     /* flush the output buffer because otherwise
       it may throw the timings of a next
       experiment. */
@@ -115,7 +117,6 @@ int main(int argc, char *argv[])
     
       /* Compute C += A B */
       MyGemm( m, n, k, A, ldA, B, ldB, C, ldC );
-      printf("DONE DONE ");
 
       /* stop clock */
       dtime = FLA_Clock() - dtime;
