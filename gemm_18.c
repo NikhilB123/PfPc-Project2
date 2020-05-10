@@ -20,11 +20,11 @@ void PackMicroPanelB_KCxNR( int, int, double *, int, double *);
 void PackPanelB( int, int, double *, int, double * );
 
 /* Blocking parameters */
-#define MC 12
+#define MC 276
 #define MR 12
 #define NC 4
 #define NR 4
-#define KC 4
+#define KC 48
   
 /* Wrapper for GEMM function */
 void MyGemm( int m, int n, int k, double *A, int ldA,

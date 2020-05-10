@@ -131,6 +131,7 @@ int main(int argc, char *argv[])
 
     /* compute GFLOPS / GFLOPS_ref */
     per_of_ref = dtime_best_ref/dtime_best;
+   
     
     printf( "%1lu_group_data",(unsigned long) GNUM);
     printf( "( %2lu, 1:5) = [ %4lu %7.2f  %7.2f     %7.2f       %8.4le ];\n",
