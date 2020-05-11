@@ -9,15 +9,14 @@
 #define gamma( i,j ) C[ (j)* ldC + (i) ]   // map gamma( i,j ) to array C
 
 void LoopFive( int, int, int, double *, int, double *, int, double *, int );
-void LoopFour( int, int, int, double *, int, double *, int,  double *, int );
+static inline void LoopFour( int, int, int, double *, int, double *, int,  double *, int );
 void LoopThree( int, int, int, double *, int, double *, double *, int );
 void LoopTwo( int, int, int, double *, double *,  double *, int );
 void LoopOne( int, int, int, double *, double *, double *, int );
 void Gemm_MRxNRKernel_Packed( int, double *, double *, double *, int );
 void PackBlockA( int, int, double *, int, double * );
-void PackMicroPanelA_MRxKC( int, int, double *, int, double *);
-void PackMicroPanelB_KCxNR( int, int, double *, int, double *);
-
+ void PackMicroPanelA_MRxKC( int, int, double *, int, double *);
+ void PackMicroPanelB_KCxNR( int, int, double *, int, double *);
 void PackPanelB( int, int, double *, int, double * );
 
 /* Blocking parameters */
@@ -63,7 +62,7 @@ void LoopFive(  int m, int n, int k,
   } 
 }
 
-void LoopFour(  int m, int n, int k, 
+ static inline void LoopFour(  int m, int n, int k, 
                 double *A, int ldA, 
                 double *B, int ldB,
                 double *C, int ldC )
@@ -269,12 +268,11 @@ void PackBlockA( int m, int k, double *A, int ldA, double *Atilde )
 {
   for ( int i=0; i<m; i+= MR ){
     int ib = dmin( MR, m-i );
-
     PackMicroPanelA_MRxKC( ib, k, &alpha( i, 0 ), ldA, Atilde );
     Atilde += ib * k;
   }
 }
-void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde ) 
+  void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde ) 
 /* Pack a micro-panel of A into buffer pointed to by Atilde. 
    This is an unoptimized implementation for general MR and KC. */
 {
@@ -282,9 +280,12 @@ void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde )
 
   if ( m == MR ) {
     /* Full row size micro-panel.*/
-    for ( int p=0; p<k; p++ ) 
-      for ( int i=0; i<MR; i++ ) 
+    for ( int p=0; p<k; p++ ) {
+      for ( int i=0; i<MR; i+=2 ) {
         *Atilde++ = alpha( i, p );
+        *Atilde++ = alpha( i+1, p );
+      }
+    }
   }
   else {
     /* Not a full row size micro-panel.  We pad with zeroes.  To be  added */
@@ -299,13 +300,12 @@ void PackPanelB( int k, int n, double *B, int ldB, double *Btilde )
 {
   for ( int j=0; j<n; j+= NR ){
     int jb = dmin( NR, n-j );
-    
     PackMicroPanelB_KCxNR( k, jb, &beta( 0, j ), ldB, Btilde );
     Btilde += k * jb;
   }
 }
 
-void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
+  void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
       double *Btilde )
 /* Pack a micro-panel of B into buffer pointed to by Btilde.
    This is an unoptimized implementation for general KC and NR.
@@ -316,8 +316,10 @@ void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
   if ( n == NR ) {
     /* Full column width micro-panel.*/
     for ( int p=0; p<k; p++ )
-      for ( int j=0; j<NR; j++ )
+      for ( int j=0; j<NR; j+=2 ){
         *Btilde++ = beta( p, j );
+        *Btilde++ = beta( p, j+1 );
+      }
   }
   else {
     /* Not a full row size micro-panel. We pad with zeroes.
