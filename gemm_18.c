@@ -55,12 +55,10 @@ void LoopFive(  int m, int n, int k,
                 double *B, int ldB, 
                 double *C, int ldC )
 {
-  for ( int j=0; j<n; j+=NC*2 ) 
+  for ( int j=0; j<n; j+=NC ) 
   {
     int jb = dmin( NC, n-j );    /* Last loop may not involve a full block */
     LoopFour( m, jb, k, A, ldA, &beta( 0,j ), ldB, &gamma( 0,j ), ldC );
-    jb = dmin( NC, n-j+1 );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j+1 ), ldB, &gamma( 0,j+1 ), ldC );
      
   } 
 }
@@ -72,16 +70,11 @@ void LoopFour(  int m, int n, int k,
 {
   double *Btilde = ( double * ) _mm_malloc( KC * NC * sizeof( double ), 64 );
   
-  for ( int p=0; p<k; p+=KC*2 ) 
+  for ( int p=0; p<k; p+=KC ) 
   {
     int pb = dmin( KC, k-p );    /* Last loop may not involve a full block */
     PackPanelB( pb, n, &beta( p, 0 ), ldB, Btilde );
     LoopThree( m, n, pb, &alpha( 0, p ), ldA, Btilde, C, ldC );
-
-  
-    // pb = dmin( KC, k-p+1 );    /* Last loop may not involve a full block */
-    // PackPanelB( pb, n, &beta( p+1, 0 ), ldB, Btilde );
-    // LoopThree( m, n, pb, &alpha( 0, p+1), ldA, Btilde, C, ldC );
   }
 
   _mm_free( Btilde); 
