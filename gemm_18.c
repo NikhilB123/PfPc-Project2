@@ -9,14 +9,14 @@
 #define gamma( i,j ) C[ (j)* ldC + (i) ]   // map gamma( i,j ) to array C
 
 void LoopFive( int, int, int, double *, int, double *, int, double *, int );
-static inline void LoopFour( int, int, int, double *, int, double *, int,  double *, int );
+ void LoopFour( int, int, int, double *, int, double *, int,  double *, int );
 void LoopThree( int, int, int, double *, int, double *, double *, int );
 void LoopTwo( int, int, int, double *, double *,  double *, int );
 void LoopOne( int, int, int, double *, double *, double *, int );
 void Gemm_MRxNRKernel_Packed( int, double *, double *, double *, int );
 void PackBlockA( int, int, double *, int, double * );
- void PackMicroPanelA_MRxKC( int, int, double *, int, double *);
- void PackMicroPanelB_KCxNR( int, int, double *, int, double *);
+static inline void PackMicroPanelA_MRxKC( int, int, double *, int, double *);
+static inline void PackMicroPanelB_KCxNR( int, int, double *, int, double *);
 void PackPanelB( int, int, double *, int, double * );
 
 /* Blocking parameters */
@@ -62,12 +62,12 @@ void LoopFive(  int m, int n, int k,
   } 
 }
 
- static inline void LoopFour(  int m, int n, int k, 
+ void LoopFour(  int m, int n, int k, 
                 double *A, int ldA, 
                 double *B, int ldB,
                 double *C, int ldC )
 {
-  double *Btilde = ( double * ) _mm_malloc( KC * NC * sizeof( double ), 64 );
+  double *restrict Btilde = ( double * ) _mm_malloc( KC * NC * sizeof( double ), 64 );
   
   for ( int p=0; p<k; p+=KC ) 
   {
@@ -84,7 +84,7 @@ void LoopThree( int m, int n, int k,
                 double *Btilde, 
                 double *C, int ldC )
 {
-  double *Atilde = ( double * ) _mm_malloc( MC * KC * sizeof( double ), 64 );
+  double *restrict Atilde = ( double * ) _mm_malloc( MC * KC * sizeof( double ), 64 );
        
   for ( int i=0; i<m; i+=MC ) {
     int ib = dmin( MC, m-i );    /* Last loop may not involve a full block */
@@ -272,18 +272,20 @@ void PackBlockA( int m, int k, double *A, int ldA, double *Atilde )
     Atilde += ib * k;
   }
 }
-  void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde ) 
+static inline void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde ) 
 /* Pack a micro-panel of A into buffer pointed to by Atilde. 
    This is an unoptimized implementation for general MR and KC. */
 {
   /* March through A in column-major order, packing into Atilde as we go. */
-
+ 
   if ( m == MR ) {
     /* Full row size micro-panel.*/
     for ( int p=0; p<k; p++ ) {
       for ( int i=0; i<MR; i+=2 ) {
-        *Atilde++ = alpha( i, p );
-        *Atilde++ = alpha( i+1, p );
+          __m256d alpha_0123_i = _mm256_loadu_pd( &alpha( i,p ) );
+           __m256d alpha_0123_i1 = _mm256_loadu_pd( &alpha( i+1,p ) );
+          _mm256_storeu_pd(  &*Atilde++, alpha_0123_i );
+          _mm256_storeu_pd(  &*Atilde++, alpha_0123_i1 );
       }
     }
   }
@@ -305,7 +307,7 @@ void PackPanelB( int k, int n, double *B, int ldB, double *Btilde )
   }
 }
 
-  void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
+static inline void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
       double *Btilde )
 /* Pack a micro-panel of B into buffer pointed to by Btilde.
    This is an unoptimized implementation for general KC and NR.
@@ -317,8 +319,11 @@ void PackPanelB( int k, int n, double *B, int ldB, double *Btilde )
     /* Full column width micro-panel.*/
     for ( int p=0; p<k; p++ )
       for ( int j=0; j<NR; j+=2 ){
-        *Btilde++ = beta( p, j );
-        *Btilde++ = beta( p, j+1 );
+        __m256d beta_0123_i = _mm256_loadu_pd( &beta( p,j ) );
+           __m256d beta_0123_i1 = _mm256_loadu_pd( &beta( p,j+1 ) );
+          _mm256_storeu_pd(  &*Btilde++, beta_0123_i );
+          _mm256_storeu_pd(  &*Btilde++, beta_0123_i1 );
+
       }
   }
   else {
