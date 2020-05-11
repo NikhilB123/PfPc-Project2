@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
   double
     d_one = 1.0,
     dtime, dtime_best_ref = DP_MAX, dtime_best = DP_MAX, 
-    diff, maxdiff = 0.0, gflops, per_of_ref;
+    diff, maxdiff = 0.0, gflops, per_of_ref, avg = 0;
 
   double
     *A, *B, *C, *Cold, *Cref;
@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
   first = P_BEGIN;
   last  = P_END;
   inc   = P_INC;
+           
 
   /* Adjust first and last so that they are multiples of inc */
   last = ( last / inc ) * inc;
@@ -79,6 +80,7 @@ int main(int argc, char *argv[])
     /* Time reference implementation provided by the BLAS library
        routine dgemm (double precision general matrix-matrix
        multiplicationn */
+
     for ( irep=0; irep<nrepeats; irep++ ){
       
       /* Copy matrix Cold to Cref */
@@ -106,7 +108,6 @@ int main(int argc, char *argv[])
       it may throw the timings of a next
       experiment. */
     fflush( stdout ); 
-
     /* Time MyGemm */
     for ( irep=0; irep<nrepeats; irep++ ){
       /* Copy vector Cold to C */
@@ -120,6 +121,7 @@ int main(int argc, char *argv[])
 
       /* stop clock */
       dtime = FLA_Clock() - dtime;
+      
     
       /* store best run */
       dtime_best = dmin(dtime, dtime_best);
@@ -131,6 +133,7 @@ int main(int argc, char *argv[])
 
     /* compute GFLOPS / GFLOPS_ref */
     per_of_ref = dtime_best_ref/dtime_best;
+    avg += per_of_ref;
     
     printf( "%1lu_group_data",(unsigned long) GNUM);
     printf( "( %2lu, 1:5) = [ %4lu %7.2f  %7.2f     %7.2f       %8.4le ];\n",
@@ -154,6 +157,7 @@ int main(int argc, char *argv[])
     free( Cref );
   }
   printf( "\n\n%% Maximum difference between reference and your implementation: %le.\n", maxdiff );
+  printf("%f ", avg/50.00);
   
   exit( 0 );
 }

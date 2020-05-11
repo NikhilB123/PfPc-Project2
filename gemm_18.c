@@ -1,3 +1,4 @@
+
 #include "driver.h"
 #include<immintrin.h>
 #include <stdio.h>
@@ -28,7 +29,7 @@ void PackPanelB( int, int, double *, int, double * );
   
 /* Wrapper for GEMM function */
 void MyGemm( int m, int n, int k, double *A, int ldA,
-	     double *B, int ldB, double *C, int ldC )
+       double *B, int ldB, double *C, int ldC )
 {
 
 
@@ -51,28 +52,36 @@ void MyGemm( int m, int n, int k, double *A, int ldA,
 
 void LoopFive(  int m, int n, int k, 
                 double *A, int ldA,
-		            double *B, int ldB, 
+                double *B, int ldB, 
                 double *C, int ldC )
 {
-  for ( int j=0; j<n; j+= NC ) 
+  for ( int j=0; j<n; j+=NC*2 ) 
   {
     int jb = dmin( NC, n-j );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j ), ldB, &gamma( 0,j ), ldC ); 
+    LoopFour( m, jb, k, A, ldA, &beta( 0,j ), ldB, &gamma( 0,j ), ldC );
+    jb = dmin( NC, n-j+1 );    /* Last loop may not involve a full block */
+    LoopFour( m, jb, k, A, ldA, &beta( 0,j+1 ), ldB, &gamma( 0,j+1 ), ldC );
+     
   } 
 }
 
 void LoopFour(  int m, int n, int k, 
                 double *A, int ldA, 
                 double *B, int ldB,
-	              double *C, int ldC )
+                double *C, int ldC )
 {
   double *Btilde = ( double * ) _mm_malloc( KC * NC * sizeof( double ), 64 );
   
-  for ( int p=0; p<k; p+=KC ) 
+  for ( int p=0; p<k; p+=KC*2 ) 
   {
     int pb = dmin( KC, k-p );    /* Last loop may not involve a full block */
     PackPanelB( pb, n, &beta( p, 0 ), ldB, Btilde );
     LoopThree( m, n, pb, &alpha( 0, p ), ldA, Btilde, C, ldC );
+
+  
+    // pb = dmin( KC, k-p+1 );    /* Last loop may not involve a full block */
+    // PackPanelB( pb, n, &beta( p+1, 0 ), ldB, Btilde );
+    // LoopThree( m, n, pb, &alpha( 0, p+1), ldA, Btilde, C, ldC );
   }
 
   _mm_free( Btilde); 
@@ -120,7 +129,7 @@ void LoopOne( int m, int n, int k,
 /* DGEMM mircokernel 
   Computes C += AB where C is MR x NR, A is MR x KC, and B is KC x NR */
 void Gemm_MRxNRKernel_Packed( int k, double *A,double *B,
-		double *C, int ldC )
+    double *C, int ldC )
 {
   __m256d gamma_0123_0 = _mm256_loadu_pd( &gamma( 0,0 ) );
   __m256d gamma_0123_1 = _mm256_loadu_pd( &gamma( 0,1 ) );
@@ -136,34 +145,109 @@ void Gemm_MRxNRKernel_Packed( int k, double *A,double *B,
   __m256d gamma_891011_3 = _mm256_loadu_pd( &gamma( 8,3 ) );
 
   __m256d beta_p_j;
-   	
-  for ( int p=0; p<k; p++ ){
+  __m256d beta_p_j1;
+  __m256d beta_p_j2;
+  __m256d beta_p_j3;
+    
+  for ( int p=0; p<k; p+=4 ){
     /* load alpha( 0:11, p ) */
     __m256d alpha_0123_p = _mm256_loadu_pd( A );
     __m256d alpha_4567_p = _mm256_loadu_pd( A+4 );
     __m256d alpha_891011_p = _mm256_loadu_pd( A+8 );
+
+      __m256d alpha_0123_p1 = _mm256_loadu_pd( A+12 );
+    __m256d alpha_4567_p1= _mm256_loadu_pd( A+16 );
+    __m256d alpha_891011_p1 = _mm256_loadu_pd( A+20 );
+
+       __m256d alpha_0123_p2 = _mm256_loadu_pd( A+24 );
+    __m256d alpha_4567_p2= _mm256_loadu_pd( A+28 );
+    __m256d alpha_891011_p2 = _mm256_loadu_pd( A+32 );
+
+       __m256d alpha_0123_p3 = _mm256_loadu_pd( A+36 );
+    __m256d alpha_4567_p3= _mm256_loadu_pd( A+40 );
+    __m256d alpha_891011_p3 = _mm256_loadu_pd( A+44 );
     /* load beta( p, 0 ); update gamma( 0:3, 0 ) */
     beta_p_j = _mm256_broadcast_sd( B );
     gamma_0123_0 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_0 );
     gamma_4567_0 = _mm256_fmadd_pd( alpha_4567_p, beta_p_j, gamma_4567_0 );
     gamma_891011_0 = _mm256_fmadd_pd( alpha_891011_p, beta_p_j, gamma_891011_0 );
+
+    beta_p_j1 = _mm256_broadcast_sd( B+4 );
+    gamma_0123_0 = _mm256_fmadd_pd( alpha_0123_p1, beta_p_j1, gamma_0123_0 );
+    gamma_4567_0 = _mm256_fmadd_pd( alpha_4567_p1, beta_p_j1, gamma_4567_0 );
+    gamma_891011_0 = _mm256_fmadd_pd( alpha_891011_p1, beta_p_j1, gamma_891011_0 );
+
+      beta_p_j2 = _mm256_broadcast_sd( B+8 );
+    gamma_0123_0 = _mm256_fmadd_pd( alpha_0123_p2, beta_p_j2, gamma_0123_0 );
+    gamma_4567_0 = _mm256_fmadd_pd( alpha_4567_p2, beta_p_j2, gamma_4567_0 );
+    gamma_891011_0 = _mm256_fmadd_pd( alpha_891011_p2, beta_p_j2, gamma_891011_0 );
+
+      beta_p_j3 = _mm256_broadcast_sd( B+12 );
+    gamma_0123_0 = _mm256_fmadd_pd( alpha_0123_p3, beta_p_j3, gamma_0123_0 );
+    gamma_4567_0 = _mm256_fmadd_pd( alpha_4567_p3, beta_p_j3, gamma_4567_0 );
+    gamma_891011_0 = _mm256_fmadd_pd( alpha_891011_p3, beta_p_j3, gamma_891011_0 );
     /* load beta( p, 1 ); update gamma( 0:3, 1 ) */
     beta_p_j = _mm256_broadcast_sd( B+1 );
     gamma_0123_1 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_1 );
     gamma_4567_1 = _mm256_fmadd_pd( alpha_4567_p, beta_p_j, gamma_4567_1 );
     gamma_891011_1 = _mm256_fmadd_pd( alpha_891011_p, beta_p_j, gamma_891011_1 );
+
+     beta_p_j1 = _mm256_broadcast_sd( B+5 );
+    gamma_0123_1 = _mm256_fmadd_pd( alpha_0123_p1, beta_p_j1, gamma_0123_1 );
+    gamma_4567_1 = _mm256_fmadd_pd( alpha_4567_p1, beta_p_j1, gamma_4567_1 );
+    gamma_891011_1 = _mm256_fmadd_pd( alpha_891011_p1, beta_p_j1, gamma_891011_1 );
+
+    beta_p_j2 = _mm256_broadcast_sd( B+9 );
+    gamma_0123_1 = _mm256_fmadd_pd( alpha_0123_p2, beta_p_j2, gamma_0123_1 );
+    gamma_4567_1 = _mm256_fmadd_pd( alpha_4567_p2, beta_p_j2, gamma_4567_1 );
+    gamma_891011_1 = _mm256_fmadd_pd( alpha_891011_p2, beta_p_j2, gamma_891011_1 );
+
+    beta_p_j3 = _mm256_broadcast_sd( B+13 );
+    gamma_0123_1 = _mm256_fmadd_pd( alpha_0123_p3, beta_p_j3, gamma_0123_1 );
+    gamma_4567_1 = _mm256_fmadd_pd( alpha_4567_p3, beta_p_j3, gamma_4567_1 );
+    gamma_891011_1 = _mm256_fmadd_pd( alpha_891011_p3, beta_p_j3, gamma_891011_1 );
     /* load beta( p, 2 ); update gamma( 0:3, 2 ) */
     beta_p_j = _mm256_broadcast_sd( B+2 );
     gamma_0123_2 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_2 );
     gamma_4567_2 = _mm256_fmadd_pd( alpha_4567_p, beta_p_j, gamma_4567_2 );
     gamma_891011_2 = _mm256_fmadd_pd( alpha_891011_p, beta_p_j, gamma_891011_2 );
+
+    beta_p_j1 = _mm256_broadcast_sd( B+6 );
+    gamma_0123_2 = _mm256_fmadd_pd( alpha_0123_p1, beta_p_j1, gamma_0123_2 );
+    gamma_4567_2 = _mm256_fmadd_pd( alpha_4567_p1, beta_p_j1, gamma_4567_2 );
+    gamma_891011_2 = _mm256_fmadd_pd( alpha_891011_p1, beta_p_j1, gamma_891011_2 );
+
+    beta_p_j2 = _mm256_broadcast_sd( B+10 );
+    gamma_0123_2 = _mm256_fmadd_pd( alpha_0123_p2, beta_p_j2, gamma_0123_2 );
+    gamma_4567_2 = _mm256_fmadd_pd( alpha_4567_p2, beta_p_j2, gamma_4567_2 );
+    gamma_891011_2 = _mm256_fmadd_pd( alpha_891011_p2, beta_p_j2, gamma_891011_2 );
+
+    beta_p_j3 = _mm256_broadcast_sd( B+14 );
+    gamma_0123_2 = _mm256_fmadd_pd( alpha_0123_p3, beta_p_j3, gamma_0123_2 );
+    gamma_4567_2 = _mm256_fmadd_pd( alpha_4567_p3, beta_p_j3, gamma_4567_2 );
+    gamma_891011_2 = _mm256_fmadd_pd( alpha_891011_p3, beta_p_j3, gamma_891011_2 );
     /* load beta( p, 3 ); update gamma( 0:3, 3 ) */
     beta_p_j = _mm256_broadcast_sd( B+3 );
     gamma_0123_3 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_3 );
     gamma_4567_3 = _mm256_fmadd_pd( alpha_4567_p, beta_p_j, gamma_4567_3 );
     gamma_891011_3 = _mm256_fmadd_pd( alpha_891011_p, beta_p_j, gamma_891011_3 );
-    A += MR;
-    B += NR;
+
+    beta_p_j1 = _mm256_broadcast_sd( B+7 );
+    gamma_0123_3 = _mm256_fmadd_pd( alpha_0123_p1, beta_p_j1, gamma_0123_3 );
+    gamma_4567_3 = _mm256_fmadd_pd( alpha_4567_p1, beta_p_j1, gamma_4567_3 );
+    gamma_891011_3 = _mm256_fmadd_pd( alpha_891011_p1, beta_p_j1, gamma_891011_3 );
+
+    beta_p_j2 = _mm256_broadcast_sd( B+11 );
+    gamma_0123_3 = _mm256_fmadd_pd( alpha_0123_p2, beta_p_j2, gamma_0123_3 );
+    gamma_4567_3 = _mm256_fmadd_pd( alpha_4567_p2, beta_p_j2, gamma_4567_3 );
+    gamma_891011_3 = _mm256_fmadd_pd( alpha_891011_p2, beta_p_j2, gamma_891011_3 );
+
+    beta_p_j3 = _mm256_broadcast_sd( B+15 );
+    gamma_0123_3 = _mm256_fmadd_pd( alpha_0123_p3, beta_p_j3, gamma_0123_3 );
+    gamma_4567_3 = _mm256_fmadd_pd( alpha_4567_p3, beta_p_j3, gamma_4567_3 );
+    gamma_891011_3 = _mm256_fmadd_pd( alpha_891011_p3, beta_p_j3, gamma_891011_3 );
+    A += 4*MR;
+    B += 4*NR;
   }
 
   /* Store the updated results.  This should be done more carefully since
@@ -229,7 +313,7 @@ void PackPanelB( int k, int n, double *B, int ldB, double *Btilde )
 }
 
 void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
-	    double *Btilde )
+      double *Btilde )
 /* Pack a micro-panel of B into buffer pointed to by Btilde.
    This is an unoptimized implementation for general KC and NR.
    k is assumed to be less then or equal to KC.
