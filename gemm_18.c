@@ -22,9 +22,9 @@ void PackPanelB( int, int, double *, int, double * );
 /* Blocking parameters */
 #define MC 276
 #define MR 12
-#define NC 4
+#define NC 276
 #define NR 4
-#define KC 48
+#define KC 256
   
 /* Wrapper for GEMM function */
 void MyGemm( int m, int n, int k, double *A, int ldA,
@@ -54,25 +54,10 @@ void LoopFive(  int m, int n, int k,
 		            double *B, int ldB, 
                 double *C, int ldC )
 {
-  for ( int j=0; j<n; j+= (NC*8) ) 
+  for ( int j=0; j<n; j+= NC ) 
   {
     int jb = dmin( NC, n-j );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j ), ldB, &gamma( 0,j ), ldC );
-      jb = dmin( NC, n-j+NC );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j+NC ), ldB, &gamma( 0,j+NC ), ldC );
-     jb = dmin( NC, n-j+2*NC );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j+2*NC ), ldB, &gamma( 0,j+2*NC ), ldC );
-     jb = dmin( NC, n-j+3*NC );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j+3*NC ), ldB, &gamma( 0,j+3*NC ), ldC );
-    jb = dmin( NC, n-j+4*NC );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j+4*NC ), ldB, &gamma( 0,j+4*NC ), ldC );
-    jb = dmin( NC, n-j+5*NC );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j+5*NC ), ldB, &gamma( 0,j+5*NC ), ldC );
-    jb = dmin( NC, n-j+6*NC );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j+6*NC ), ldB, &gamma( 0,j+6*NC ), ldC );
-    jb = dmin( NC, n-j+7*NC );    /* Last loop may not involve a full block */
-    LoopFour( m, jb, k, A, ldA, &beta( 0,j+7*NC ), ldB, &gamma( 0,j+7*NC ), ldC );
-    
+    LoopFour( m, jb, k, A, ldA, &beta( 0,j ), ldB, &gamma( 0,j ), ldC ); 
   } 
 }
 
