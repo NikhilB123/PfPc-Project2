@@ -284,8 +284,10 @@ static inline void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, doub
       for ( int i=0; i<MR; i+=2 ) {
           __m256d alpha_0123_i = _mm256_loadu_pd( &alpha( i,p ) );
            __m256d alpha_0123_i1 = _mm256_loadu_pd( &alpha( i+1,p ) );
+    
           _mm256_storeu_pd(  &*Atilde++, alpha_0123_i );
           _mm256_storeu_pd(  &*Atilde++, alpha_0123_i1 );
+    
       }
     }
   }
@@ -320,9 +322,13 @@ static inline void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
     for ( int p=0; p<k; p++ )
       for ( int j=0; j<NR; j+=2 ){
         __m256d beta_0123_i = _mm256_loadu_pd( &beta( p,j ) );
-           __m256d beta_0123_i1 = _mm256_loadu_pd( &beta( p,j+1 ) );
+        __m256d beta_0123_i1 = _mm256_loadu_pd( &beta( p,j+1 ) );
+    
+
+
           _mm256_storeu_pd(  &*Btilde++, beta_0123_i );
           _mm256_storeu_pd(  &*Btilde++, beta_0123_i1 );
+    
 
       }
   }

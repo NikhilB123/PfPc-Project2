@@ -7,7 +7,7 @@ CC         := gcc-9
 LINKER     := $(CC)
 OPT_FLAGS  := -O3 -march=native
 OPM_FLAGS  := -fopenmp
-STD_FLAGS  := -std=c99  -D_POSIX_C_SOURCE=200809L
+STD_FLAGS  :=  -D_POSIX_C_SOURCE=200809L
 CFLAGS     := $(OPT_FLAGS) $(OPM_FLAGS) -I$(BLAS_INC) $(STD_FLAGS) -m64 -mavx2
 FFLAGS     := $(CFLAGS) 
 
