@@ -15,8 +15,8 @@ void LoopTwo( int, int, int, double *, double *,  double *, int );
 void LoopOne( int, int, int, double *, double *, double *, int );
 void Gemm_MRxNRKernel_Packed( int, double *, double *, double *, int );
 void PackBlockA( int, int, double *, int, double * );
-static inline void PackMicroPanelA_MRxKC( int, int, double *, int, double *);
-static inline void PackMicroPanelB_KCxNR( int, int, double *, int, double *);
+void PackMicroPanelA_MRxKC( int, int, double *, int, double *);
+void PackMicroPanelB_KCxNR( int, int, double *, int, double *);
 void PackPanelB( int, int, double *, int, double * );
 
 /* Blocking parameters */
@@ -67,7 +67,7 @@ void LoopFive(  int m, int n, int k,
                 double *B, int ldB,
                 double *C, int ldC )
 {
-  double *restrict Btilde = ( double * ) _mm_malloc( KC * NC * sizeof( double ), 64 );
+  double *Btilde = ( double * ) _mm_malloc( KC * NC * sizeof( double ), 64 );
   
   for ( int p=0; p<k; p+=KC ) 
   {
@@ -84,7 +84,7 @@ void LoopThree( int m, int n, int k,
                 double *Btilde, 
                 double *C, int ldC )
 {
-  double *restrict Atilde = ( double * ) _mm_malloc( MC * KC * sizeof( double ), 64 );
+  double *Atilde = ( double * ) _mm_malloc( MC * KC * sizeof( double ), 64 );
        
   for ( int i=0; i<m; i+=MC ) {
     int ib = dmin( MC, m-i );    /* Last loop may not involve a full block */
@@ -289,7 +289,7 @@ void PackBlockA( int m, int k, double *A, int ldA, double *Atilde )
     Atilde += ib * k;
   }
 }
-static inline void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde ) 
+void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde ) 
 /* Pack a micro-panel of A into buffer pointed to by Atilde. 
    This is an unoptimized implementation for general MR and KC. */
 {
@@ -325,7 +325,7 @@ void PackPanelB( int k, int n, double *B, int ldB, double *Btilde )
   }
 }
 
-static inline void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
+void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
       double *Btilde )
 /* Pack a micro-panel of B into buffer pointed to by Btilde.
    This is an unoptimized implementation for general KC and NR.
